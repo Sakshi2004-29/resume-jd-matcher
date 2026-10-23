@@ -1,0 +1,39 @@
+
+# Python virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Environment variables and API keys
+.env
+.env.*
+*.env
+GEMINI_API_KEY.env
+*.key
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Local databases, vector stores and generated data
+chroma_db/
+chroma.sqlite3
+*.sqlite3
+*.db
+
+# Logs and temporary files
+*.log
+logs/
+temp/
+tmp/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+# Local environment and generated files
+.streamlit/
