@@ -1,198 +1,129 @@
-# Resume ↔ Job Description Matcher (RAG-based)
+# Resume ↔ Job Description Matcher
 
-A Retrieval-Augmented Generation (RAG) application that compares a resume against
-a job description, scores the fit, identifies gaps, and suggests concrete resume
-improvements — using semantic search + an LLM, not just keyword matching.
+An AI-powered Resume–Job Description Matcher built with Streamlit, FastAPI, Gemini, and Supabase. It compares a resume with a job description, evaluates matching skills and experience, identifies gaps, and suggests improvements.
 
----
+## Features
 
-## Problem Statement
+- Upload a resume and provide a job description.
+- Analyze resume relevance using AI.
+- Display a match score and identify matched and missing requirements.
+- View analysis results and visual summaries.
+- Export analysis results as a PDF.
+- Sign in and keep analysis history associated with the user's account through Supabase.
 
-Manually checking whether a resume matches a job description is slow and
-error-prone: keyword-matching tools miss semantic equivalence (e.g. "built REST
-APIs" vs. "backend development experience"), while purely manual review doesn't
-scale across many applications. This tool retrieves the *most relevant* resume
-evidence for each JD requirement using embeddings, then asks an LLM to reason
-over that evidence and produce a structured, actionable analysis.
+## Technology Stack
 
----
-
-## Architecture
-
-```
-┌─────────────┐      ┌──────────────────┐      ┌────────────────────┐
-│  Streamlit  │─────▶│   FastAPI         │─────▶│  Document Parser    │
-│  Frontend   │      │   Backend         │      │  (pdf/docx/txt)     │
-└─────────────┘      │  (/analyze)       │      └────────────────────┘
-                      │                  │
-                      │        │         │
-                      │        ▼         │
-                      │  ┌──────────────┐│      ┌────────────────────┐
-                      │  │ Chunk resume ││─────▶│  sentence-           │
-                      │  │ into segments││      │  transformers        │
-                      │  └──────────────┘│      │  (embeddings)        │
-                      │        │         │      └────────────────────┘
-                      │        ▼         │               │
-                      │  ┌──────────────┐│               ▼
-                      │  │  ChromaDB    ││◀──────────────┘
-                      │  │  (vector DB) ││
-                      │  └──────────────┘│
-                      │        │         │
-                      │        ▼         │
-                      │  Extract JD      │
-                      │  requirements    │──────▶ Claude (LLM)
-                      │  via LLM         │
-                      │        │         │
-                      │        ▼         │
-                      │  Retrieve top-k  │
-                      │  resume chunks   │
-                      │  per requirement │
-                      │        │         │
-                      │        ▼         │
-                      │  Final scoring + │──────▶ Claude (LLM)
-                      │  gap analysis    │
-                      └──────────────────┘
-```
-
-### Pipeline steps
-
-1. **Parse** — extract raw text from uploaded resume/JD (PDF, DOCX, or TXT).
-2. **Chunk** — split the resume into overlapping ~400-word segments.
-3. **Embed** — encode chunks with a local `sentence-transformers` model
-   (`all-MiniLM-L6-v2`) — free, runs offline, no API cost.
-4. **Store** — index embeddings in an ephemeral ChromaDB collection.
-5. **Extract requirements** — ask Claude to turn the JD into a clean list of
-   discrete requirements (skills, tools, qualifications).
-6. **Retrieve** — for each requirement, semantically retrieve the most
-   relevant resume chunks (this is the "R" in RAG).
-7. **Generate** — feed the requirement-by-requirement evidence to Claude and
-   ask for a match score, matched/missing requirements, and improvement
-   suggestions (this is the "G" in RAG).
-
----
-
-## Tech Stack
-
-| Component        | Technology                          | Reason |
-|-------------------|--------------------------------------|--------|
-| LLM               | Claude (Anthropic API)              | Reasoning over retrieved evidence |
-| Embeddings        | sentence-transformers (local)       | Free, no API cost, fast |
-| Vector store      | ChromaDB (ephemeral, in-memory)      | Zero setup, no external DB needed |
-| Backend           | FastAPI                              | Clean REST API, async support |
-| Frontend          | Streamlit                            | Fast to build, good demo UX |
-| Containerization  | Docker + docker-compose              | Reproducible, portfolio-ready |
-
----
+| Component | Technology |
+|---|---|
+| Frontend | Streamlit |
+| Backend API | FastAPI |
+| LLM | Google Gemini |
+| Embeddings | Sentence Transformers |
+| Vector store | ChromaDB |
+| Authentication and history | Supabase |
+| Document parsing | PyPDF and python-docx |
+| Containerization | Docker and Docker Compose |
 
 ## Project Structure
 
-```
+```text
 resume-jd-matcher/
 ├── backend/
-│   ├── main.py              # FastAPI app + /analyze endpoint
-│   ├── rag_engine.py         # Chunking, embedding, retrieval, LLM calls
-│   ├── document_parser.py    # PDF/DOCX/TXT text extraction
+│   ├── main.py
+│   ├── rag_engine.py
+│   ├── document_parser.py
 │   └── Dockerfile
 ├── frontend/
-│   ├── app.py                # Streamlit UI
+│   ├── app.py
 │   └── Dockerfile
-├── sample_data/               # (optional) put test resumes/JDs here
+├── .gitignore
 ├── docker-compose.yml
 ├── requirements.txt
-├── .env.example
 └── README.md
 ```
 
----
+## Run Locally
 
-## Setup & Run
+### 1. Create and activate a virtual environment
 
-### Option A — Local (no Docker)
+On Windows PowerShell:
 
-```bash
-# 1. Clone/copy the project, then from the project root:
-python3 -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-
-pip install -r requirements.txt
-
-# 2. Set your Anthropic API key
-cp .env.example .env
-# edit .env and paste your key
-
-export ANTHROPIC_API_KEY=$(grep ANTHROPIC_API_KEY .env | cut -d '=' -f2)
-
-# 3. Run the backend (from backend/ directory)
-cd backend
-uvicorn main:app --reload --port 8000
-
-# 4. In a second terminal, run the frontend (from frontend/ directory)
-cd frontend
-streamlit run app.py
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
 ```
 
-Visit `http://localhost:8501` in your browser.
+### 2. Install dependencies
 
-### Option B — Docker (recommended for the resume-ready version)
+```powershell
+python -m pip install -r requirements.txt
+```
 
-```bash
-cp .env.example .env
-# edit .env and paste your ANTHROPIC_API_KEY
+### 3. Configure environment variables
 
+Create the required local environment files and configure your credentials privately.
+
+The frontend uses these environment variables:
+
+- `SUPABASE_URL`
+- `SUPABASE_KEY`
+- `BACKEND_URL`
+
+The backend uses `GEMINI_API_KEY` or `GOOGLE_API_KEY`.
+
+**Never commit `.env`, `GEMINI_API_KEY.env`, API keys, or Supabase credentials to GitHub.** Configure secrets through environment variables or your hosting provider's secret settings.
+
+### 4. Start the backend
+
+From the project root:
+
+```powershell
+uvicorn backend.main:app --reload --port 8000
+```
+
+If your local setup expects the backend directory as the working directory, use the corresponding command documented in the code instead.
+
+### 5. Start the frontend
+
+Open a second terminal, activate the same virtual environment, and run:
+
+```powershell
+streamlit run frontend/app.py
+```
+
+Open `http://localhost:8501` in your browser.
+
+## Run with Docker Compose
+
+After Docker Desktop is installed and your local environment variables are configured, run:
+
+```powershell
 docker compose up --build
 ```
 
+The configured ports are:
+
 - Frontend: `http://localhost:8501`
-- Backend docs (Swagger): `http://localhost:8000/docs`
+- Backend API: `http://localhost:8000`
+- Backend API documentation: `http://localhost:8000/docs`
 
----
+## Deployment
 
-## API Reference
+The application is being prepared for separate deployment of its FastAPI backend and Streamlit frontend. Configure Gemini and Supabase credentials as secrets in the respective hosting services. Update the frontend's `BACKEND_URL` to point to the deployed backend.
 
-### `POST /analyze`
+## Security Notes
 
-**Form-data fields:**
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `resume_file` | file | Yes | PDF/DOCX/TXT resume |
-| `jd_text` | string | One of jd_text/jd_file | Pasted job description |
-| `jd_file` | file | One of jd_text/jd_file | Uploaded JD file |
+- Do not upload `.env` or `GEMINI_API_KEY.env`.
+- Do not place API keys directly in source code.
+- Use private environment variables for backend secrets.
+- Restrict access to your GitHub repository as appropriate.
 
-**Response:**
-```json
-{
-  "requirements_analyzed": 12,
-  "analysis_markdown": "## Match Score\n78/100\n\n## Matched Requirements\n..."
-}
-```
+## Known Limitations
 
-### `GET /health`
-Returns `{"status": "ok"}` — used for container health checks.
+- The vector store is temporary, so analysis data stored in ChromaDB is not persistent across requests.
+- Analysis quality depends on the uploaded documents and the LLM response.
+- Public deployment requires suitable authentication, access controls, and API usage limits.
 
----
+## Project Purpose
 
-## Known Limitations & Future Improvements
-
-- **Ephemeral vector store**: each request creates and destroys its own
-  ChromaDB collection — fine for single-user demo use, not for concurrent
-  multi-user production traffic. A persistent Chroma/Postgres+pgvector
-  setup would be the next step.
-- **Single JD at a time**: could be extended to compare one resume against
-  multiple JDs and rank them.
-- **No authentication**: fine for a portfolio project; would need auth +
-  rate limiting for public deployment.
-- **LLM cost**: two LLM calls per analysis (requirement extraction + final
-  scoring). Could be merged into one call to reduce latency/cost if needed.
-
----
-
-## Why This Project (for resume/interview framing)
-
-This project was built to demonstrate an end-to-end RAG pipeline — not just
-calling an LLM API, but combining chunking, embeddings, semantic retrieval,
-and structured LLM reasoning, wrapped in a real API + UI + Docker deployment.
-It also solves a real problem the author faced personally: evaluating resume
-fit against job descriptions during their own job search.
-
-## STREAMLIT APP LINK:-
-https://resume-jd-matcher-nsusw6hbvcssmcjagavlci.streamlit.app/
+This project demonstrates an end-to-end AI application combining document parsing, semantic retrieval, LLM-based analysis, a REST API, a web interface, and deployment configuration.
