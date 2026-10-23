@@ -11,3 +11,4 @@ requests==2.32.3
 python-dotenv==1.2.4
 matplotlib
 supabase
+reportlab
