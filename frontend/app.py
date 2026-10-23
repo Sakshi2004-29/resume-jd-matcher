@@ -27,7 +27,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env")
 
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
+
+BACKEND_URL = os.getenv("BACKEND_URL", "https://resume-jd-backend-ncs6.onrender.com").rstrip("/")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
